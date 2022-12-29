@@ -106,6 +106,103 @@ app.post("/posts", async (req, res)=>{
   }
 })
 
+// increment decrement like button
+app.put("/post-like/:id", async (req, res)=>{
+  try{
+    const body = req.body;
+    // console.log(body)
+    const id = req.params.id;
+    
+    console.log(id)
+    const userEmail = req.query.email;
+    const post = await postsCollection.find({_id: ObjectId(id)}).toArray();
+    const findUserInfo = post.find(likedInfo=>likedInfo.email === body.userLiked.e)
+    const userInfo = await post[0].userLiked;
+    const userFind = await userInfo?.find(user => user.email === userEmail)
+    const userFindIndex = await userInfo?.findIndex(user => user === userFind)
+    // console.log(userFindIndex)
+    console.log(userEmail, userFind)
+    if(userFind.liked===true){
+      const filter = {_id: ObjectId(id)};
+      const increment = userFind.liked ? { like: +1} : { like: -1};
+      // const likedUserInfo = userFind.liked ? {liked: false} : {liked: true};
+      const likedUserInfo = userFind.liked ?  false : true;
+      const updateDoc = { $inc: increment };
+      const options = {upsert: true}
+      const result = await postsCollection.updateOne(filter, updateDoc, options);
+
+      const updateLiked = postsCollection.findOneAndUpdate(
+            { _id: ObjectId(id),
+               "userLiked.email": userEmail
+            },
+            { $set:{
+               'userLiked.$.liked': likedUserInfo
+            }
+         }
+         );
+console.log("if")
+      res.send(result)
+      return
+    }else if(userFind.liked === false){
+      const filter = {_id: ObjectId(id)};
+      console.log("else if", userFind)
+      // const increment = userFind.liked ? { like: +1} : { like: -1};
+      // const likedUserInfo = userFind.liked ?  false : true;
+      const updateDoc = { $inc: { like: -1} };
+      const options = {upsert: true, }
+      const result = await postsCollection.updateOne(filter, updateDoc, options);
+      const updateLiked = postsCollection.findOneAndUpdate(
+        { _id: ObjectId(id),
+           "userLiked.email": userEmail
+        },
+        { $set:{
+           'userLiked.$.liked': true
+        }
+     }
+     );
+
+  res.send(result)
+    }else{
+      const filter = {_id: ObjectId(id)};
+      console.log("else if", userFind)
+      // const increment = userFind.liked ? { like: +1} : { like: -1};
+      // const likedUserInfo = userFind.liked ?  false : true;
+      const updateDoc = { $inc: { like: +1}, $push: { userLiked: { liked: false, email: userEmail }} };
+      const options = {upsert: true, }
+      const result = await postsCollection.updateOne(filter, updateDoc, options);
+      const updateLiked = postsCollection.findOneAndUpdate(
+        { _id: ObjectId(id),
+           "userLiked.email": userEmail
+        },
+        { $set:{
+           'userLiked.$.liked': false
+        }
+     }
+     );
+
+  res.send(result)
+    }
+    return
+
+    // const filter = {_id: ObjectId(id)};
+    // const increment = body.userLiked?.liked ? { like: +1} : { like: -1};
+    // const likedUserInfo = body.userLiked?.liked ? [{liked: false, email: body.email}] : [{liked: true, email: body.email}];
+    // const updateDoc = { $inc: increment, $set: {userLiked: likedUserInfo} };
+
+    // // const increment = body.liked ? +1 : -1;
+    // const increment = body.liked ? { like: +1} : { like: -1};
+    // const liked = body.liked ? {liked: false} : {liked: true};
+    // const updateDoc = { $inc: increment, $set: liked };
+    // const updateDoc = { $set: {userLiked: { liked: true, email: 'developertanbir@gmail.com' }} };
+    const options = {upsert: true}
+    const result = await postsCollection.updateOne(filter, updateDoc, options);
+    res.send(result);
+  }
+  catch(error){
+    console.log(error)
+  }
+})
+
 // Get POST 
 app.get("/posts", async (req, res)=>{
   try{
