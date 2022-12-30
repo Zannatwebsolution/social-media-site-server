@@ -63,7 +63,7 @@ app.put("/users/:email", async (req, res)=>{
       const options = {upsert: true}
       const result = await usersCollection.updateOne(filter, updateDoc, options);
       const token = jwt.sign(user, process.env.JWT_ACCESS_TOKEN_SECRET, {expiresIn: "365d"})
-      res.send(result);
+      res.send({result, token});
     }
     catch(error){
       console.log(error)
@@ -116,13 +116,13 @@ app.put("/post-like/:id", async (req, res)=>{
     console.log(id)
     const userEmail = req.query.email;
     const post = await postsCollection.find({_id: ObjectId(id)}).toArray();
-    const findUserInfo = post.find(likedInfo=>likedInfo.email === body.userLiked.e)
+    // const findUserInfo = post.find(likedInfo=>likedInfo.email === body.userLiked.email)
     const userInfo = await post[0].userLiked;
     const userFind = await userInfo?.find(user => user.email === userEmail)
     const userFindIndex = await userInfo?.findIndex(user => user === userFind)
     // console.log(userFindIndex)
     console.log(userEmail, userFind)
-    if(userFind.liked===true){
+    if(userFind?.liked === true){
       const filter = {_id: ObjectId(id)};
       const increment = userFind.liked ? { like: +1} : { like: -1};
       // const likedUserInfo = userFind.liked ? {liked: false} : {liked: true};
@@ -143,11 +143,11 @@ app.put("/post-like/:id", async (req, res)=>{
 console.log("if")
       res.send(result)
       return
-    }else if(userFind.liked === false){
+    }else if(userFind?.liked === false){
       const filter = {_id: ObjectId(id)};
       console.log("else if", userFind)
       // const increment = userFind.liked ? { like: +1} : { like: -1};
-      // const likedUserInfo = userFind.liked ?  false : true;
+      const likedUserInfo = userFind.liked ?  false : true;
       const updateDoc = { $inc: { like: -1} };
       const options = {upsert: true, }
       const result = await postsCollection.updateOne(filter, updateDoc, options);
@@ -156,7 +156,7 @@ console.log("if")
            "userLiked.email": userEmail
         },
         { $set:{
-           'userLiked.$.liked': true
+           'userLiked.$.liked': likedUserInfo
         }
      }
      );
@@ -164,10 +164,10 @@ console.log("if")
   res.send(result)
     }else{
       const filter = {_id: ObjectId(id)};
-      console.log("else if", userFind)
+      console.log("else", userFind)
       // const increment = userFind.liked ? { like: +1} : { like: -1};
       // const likedUserInfo = userFind.liked ?  false : true;
-      const updateDoc = { $inc: { like: +1}, $push: { userLiked: { liked: false, email: userEmail }} };
+      const updateDoc = { $inc: { like: +1}, $push: { userLiked: { liked: true, email: userEmail }} };
       const options = {upsert: true, }
       const result = await postsCollection.updateOne(filter, updateDoc, options);
       const updateLiked = postsCollection.findOneAndUpdate(
@@ -182,7 +182,7 @@ console.log("if")
 
   res.send(result)
     }
-    return
+
 
     // const filter = {_id: ObjectId(id)};
     // const increment = body.userLiked?.liked ? { like: +1} : { like: -1};
@@ -194,8 +194,38 @@ console.log("if")
     // const liked = body.liked ? {liked: false} : {liked: true};
     // const updateDoc = { $inc: increment, $set: liked };
     // const updateDoc = { $set: {userLiked: { liked: true, email: 'developertanbir@gmail.com' }} };
-    const options = {upsert: true}
-    const result = await postsCollection.updateOne(filter, updateDoc, options);
+    // const options = {upsert: true}
+    // const result = await postsCollection.updateOne(filter, updateDoc, options);
+    // res.send(result);
+  }
+  catch(error){
+    console.log(error)
+  }
+})
+
+// Create Comment
+app.post("/post-comment/:id", async (req, res)=>{
+  try{
+    const comment = req.body;
+    const id = req.params.id;
+    const email = req.query.email;
+    const filter = {_id: ObjectId(id)};
+    const updateDoc = {$push: { userComment: comment }};
+    const options = { upsert: true };
+    const result = await postsCollection.updateOne(filter, updateDoc, options)
+    res.send(result)
+  }catch(error){
+    console.log(error)
+  }
+})
+
+// Get all comment 
+app.get("/post-comment/:id", async (req, res)=>{
+  try{
+    const query = {};
+    const id = req.params.id;
+    const filter = {_id: ObjectId(id)};
+    const result = await postsCollection.find(filter).toArray();
     res.send(result);
   }
   catch(error){
@@ -203,8 +233,8 @@ console.log("if")
   }
 })
 
-// Get POST 
-app.get("/posts", async (req, res)=>{
+// Get all post 
+app.get("/posts", verifyJWT, async (req, res)=>{
   try{
     const query = {};
     const result = await postsCollection.find(query).toArray();
