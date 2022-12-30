@@ -241,8 +241,7 @@ app.get("/top-posts", async (req, res) => {
   try {
     const query = {};
     const result = await postsCollection.find(query).toArray();
-    const data = result
-      .sort(function (a, b) {
+    const data = result.sort(function (a, b) {
         return b.like - a.like;
       })
       .slice(0, 3);
